@@ -2,12 +2,46 @@ import streamlit as st
 import pandas as pd
 import asyncio
 import io
+import os
+import subprocess
+import sys
+
+# --- STEP 1: DEPLOYMENT PROVISIONING HOOK ---
+# We force the Playwright installation loop to run BEFORE crawl4ai is imported.
+# This guarantees that the headless browser engine exists on Streamlit Cloud.
+def provision_playwright_browsers():
+    # Detect if we are on a remote Streamlit Cloud server container
+    is_cloud = os.environ.get("STREAMLIT_SERVER_PORT") is not None or os.environ.get("HOME") in ["/home/appuser", "/home/adminuser"]
+    
+    if is_cloud:
+        # Check if the cache folder already has downloaded browser binaries
+        playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
+        if not os.path.exists(playwright_cache) or len(os.listdir(playwright_cache)) == 0:
+            with st.spinner("📦 Provisioning cloud browser engines (First boot only)..."):
+                try:
+                    # Execute system terminal download loop
+                    subprocess.run(
+                        [sys.executable, "-m", "playwright", "install", "chromium"], 
+                        check=True, 
+                        capture_output=True, 
+                        text=True
+                    )
+                except Exception as e:
+                    st.error(f"Failed to auto-configure server web browsers: {e}")
+
+# Run the provisioning sequence immediately
+provision_playwright_browsers()
+
+# --- STEP 2: CORE FRAMEWORK IMPORTS ---
+# Now it is completely safe to import crawl4ai modules
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
+# Set up page configurations
 st.set_page_config(page_title="Website Link & Audit Scanner", page_icon="🔍", layout="wide")
 
+# --- STEP 3: ASYNC AUDITOR CONTEXT ---
 async def run_audit_core(urls, progress_bar, status_text, log_area):
-    """Core auditing logic running directly inside volatile memory streams."""
+    """Core logic to navigate and check web endpoints without locking the UI thread."""
     browser_config = BrowserConfig(
         headless=True,
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
@@ -44,6 +78,7 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                     if status_code and status_code >= 400:
                         current_status = f"Broken (HTTP {status_code})"
                     else:
+                        # Convert to markdown layout to eliminate false soft-404 code strings
                         page_text = (result.markdown or "").lower()
                         fail_keywords = ["page not found", "404 error", "sorry, this page does not exist", "status code 404"]
                         
@@ -75,7 +110,7 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                 
     return statuses
 
-# --- Streamlit UI Layout ---
+# --- STEP 4: USER INTERFACE LAYOUT ---
 st.title("🔍 Bulk Website & Soft-404 Auditor")
 st.markdown("Upload a spreadsheet of URLs to check their status using browser automation.")
 
@@ -122,6 +157,7 @@ if uploaded_file is not None:
                 st.subheader("Results Preview")
                 st.dataframe(df, width="stretch")
                 
+                # --- Zero-Disk Output Buffer ---
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     df.to_excel(writer, index=False)
