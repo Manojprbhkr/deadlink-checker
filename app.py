@@ -7,11 +7,9 @@ import subprocess
 import sys
 
 # --- Playwright Cloud Auto-Initializer ---
-# This forces Streamlit Cloud to download the necessary Chromium binaries 
-# on startup before initializing crawl4ai, resolving the missing executable error.
 def initialize_cloud_browsers():
+    """Forces system browser installation down to app user home directory paths."""
     if os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("HOME") == "/home/appuser":
-        # Check if browser is already downloaded to avoid redundant installations
         playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
         if not os.path.exists(playwright_cache) or len(os.listdir(playwright_cache)) == 0:
             with st.spinner("📦 Initializing cloud browser engines (First boot only)..."):
@@ -25,10 +23,9 @@ def initialize_cloud_browsers():
                 except Exception as e:
                     st.error(f"Failed to provision system browser engines: {e}")
 
-# Trigger browser setup instantly before executing crawl4ai components
+# Run browser driver check before calling crawl4ai core scripts
 initialize_cloud_browsers()
 
-# Delayed import of crawl4ai elements to ensure browser pathways exist
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
 st.set_page_config(page_title="Website Link & Audit Scanner", page_icon="🔍", layout="wide")
@@ -71,10 +68,7 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                     if status_code and status_code >= 400:
                         current_status = f"Broken (HTTP {status_code})"
                     else:
-                        # Strip HTML layout blocks via Markdown text conversion
                         page_text = (result.markdown or "").lower()
-                        
-                        # Use precise text boundaries for soft-404 match vectors
                         fail_keywords = ["page not found", "404 error", "sorry, this page does not exist", "status code 404"]
                         
                         if any(keyword in page_text for keyword in fail_keywords):
@@ -83,7 +77,6 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                             current_status = "Active"
                 else:
                     error_msg = result.error_message if result else "Unknown Crawler Error"
-                    
                     if "ERR_NAME_NOT_RESOLVED" in error_msg or "failed on navigating" in error_msg.lower():
                         current_status = "Broken (Domain Does Not Exist)"
                     else:
@@ -128,7 +121,7 @@ if uploaded_file is not None:
         df.columns = df.columns.str.strip()
         
         st.success("📊 File uploaded successfully!")
-        st.dataframe(df.head(5), use_container_width=True)
+        st.dataframe(df.head(5), width="stretch")
         
         if 'URL' not in df.columns:
             st.error("❌ Critical Error: The uploaded sheet must contain a column precisely named **'URL'**.")
@@ -151,9 +144,8 @@ if uploaded_file is not None:
                 
                 status_text.text("✅ Audit Complete!")
                 st.subheader("Results Preview")
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width="stretch")
                 
-                # --- Streaming Engine: Pure volatile memory loop (Never saves file to disk) ---
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     df.to_excel(writer, index=False)
