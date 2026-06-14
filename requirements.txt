@@ -3,4 +3,4 @@ pandas
 openpyxl
 crawl4ai==0.3.8
 playwright
-setuptools
+setuptools<82.0.0
