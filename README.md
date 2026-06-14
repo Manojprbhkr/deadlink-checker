@@ -1,6 +1,7 @@
 # 🔍 Bulk Website & Soft-404 Auditor
 
-[![Streamlit App](https://streamlit.io)](https://deadlink-checker.streamlit.app/)
+### 🌐 [Click Here to Launch the Live Web App](https://streamlit.app)
+
 
 
 This application uses automated headless browsers to run accurate link audits. It scans spreadsheets of URLs to instantly catch dead links, server timeouts, domain failures, and tricky "soft-404" errors (pages that display a "Not Found" message but falsely return a live success code).
