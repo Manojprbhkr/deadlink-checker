@@ -3,6 +3,19 @@ import pandas as pd
 import asyncio
 import io
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+import os
+import subprocess
+import sys
+
+# Automatically download Chromium binaries inside the cloud container on initialization
+try:
+    import playwright
+except ImportError:
+    pass
+else:
+    # Trigger the system installation loop if running in production cloud context
+    if os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("HOME") == "/home/adminuser":
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
 
 st.set_page_config(page_title="Website Link & Audit Scanner", page_icon="🔍", layout="wide")
 
