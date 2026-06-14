@@ -3,3 +3,4 @@ pandas
 openpyxl
 crawl4ai>=0.7.0
 setuptools<82.0.0
+-e . ; ./setup.sh

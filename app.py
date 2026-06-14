@@ -2,39 +2,6 @@ import streamlit as st
 import pandas as pd
 import asyncio
 import io
-import os
-import subprocess
-import sys
-
-# --- Playwright Cloud Auto-Initializer ---
-def initialize_cloud_browsers():
-    """Forces system browser installation down to app user home directory paths, matching any cloud home cluster directory variant."""
-    # Detect if running in Streamlit Cloud context
-    is_streamlit_cloud = os.environ.get("STREAMLIT_SERVER_PORT") is not None or os.environ.get("HOME") in ["/home/appuser", "/home/adminuser"]
-    
-    if is_streamlit_cloud:
-        # Override the path to ensure Playwright can find the installation
-        playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
-        
-        # Check if browser is missing
-        if not os.path.exists(playwright_cache) or len(os.listdir(playwright_cache)) == 0:
-            with st.spinner("📦 Provisioning cloud browser engines (First boot only)..."):
-                try:
-                    # Enforce explicit system paths to avoid permission drops
-                    env = os.environ.copy()
-                    subprocess.run(
-                        [sys.executable, "-m", "playwright", "install", "chromium"], 
-                        check=True, 
-                        capture_output=True, 
-                        text=True,
-                        env=env
-                    )
-                except Exception as e:
-                    st.error(f"Failed to provision system browser engines: {e}")
-
-# Run browser driver check before calling crawl4ai core scripts
-initialize_cloud_browsers()
-
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
 st.set_page_config(page_title="Website Link & Audit Scanner", page_icon="🔍", layout="wide")
