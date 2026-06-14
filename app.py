@@ -3,7 +3,28 @@ import pandas as pd
 import asyncio
 import io
 import os
+import subprocess
 import sys
+
+# --- Playwright Cloud Auto-Initializer ---
+def initialize_cloud_browsers():
+    """Forces system browser installation down to app user home directory paths."""
+    if os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("HOME") == "/home/appuser":
+        playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
+        if not os.path.exists(playwright_cache) or len(os.listdir(playwright_cache)) == 0:
+            with st.spinner("📦 Initializing cloud browser engines (First boot only)..."):
+                try:
+                    subprocess.run(
+                        [sys.executable, "-m", "playwright", "install", "chromium"], 
+                        check=True, 
+                        capture_output=True, 
+                        text=True
+                    )
+                except Exception as e:
+                    st.error(f"Failed to provision system browser engines: {e}")
+
+# Run browser driver check before calling crawl4ai core scripts
+initialize_cloud_browsers()
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
