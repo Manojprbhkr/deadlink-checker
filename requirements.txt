@@ -1,6 +1,6 @@
 streamlit>=1.40.0
 pandas
 openpyxl
-crawl4ai==0.3.8
-playwright
+crawl4ai>=0.7.0
+playwright==1.41.0
 setuptools<82.0.0
