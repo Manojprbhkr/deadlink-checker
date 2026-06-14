@@ -3,3 +3,4 @@ pandas
 openpyxl
 crawl4ai
 playwright
+playwright-modules

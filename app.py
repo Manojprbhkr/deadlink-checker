@@ -2,25 +2,39 @@ import streamlit as st
 import pandas as pd
 import asyncio
 import io
-from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 import os
 import subprocess
 import sys
 
-# Automatically download Chromium binaries inside the cloud container on initialization
-try:
-    import playwright
-except ImportError:
-    pass
-else:
-    # Trigger the system installation loop if running in production cloud context
-    if os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("HOME") == "/home/adminuser":
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+# --- Playwright Cloud Auto-Initializer ---
+# This forces Streamlit Cloud to download the necessary Chromium binaries 
+# on startup before initializing crawl4ai, resolving the missing executable error.
+def initialize_cloud_browsers():
+    if os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("HOME") == "/home/appuser":
+        # Check if browser is already downloaded to avoid redundant installations
+        playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
+        if not os.path.exists(playwright_cache) or len(os.listdir(playwright_cache)) == 0:
+            with st.spinner("📦 Initializing cloud browser engines (First boot only)..."):
+                try:
+                    subprocess.run(
+                        [sys.executable, "-m", "playwright", "install", "chromium"], 
+                        check=True, 
+                        capture_output=True, 
+                        text=True
+                    )
+                except Exception as e:
+                    st.error(f"Failed to provision system browser engines: {e}")
+
+# Trigger browser setup instantly before executing crawl4ai components
+initialize_cloud_browsers()
+
+# Delayed import of crawl4ai elements to ensure browser pathways exist
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 
 st.set_page_config(page_title="Website Link & Audit Scanner", page_icon="🔍", layout="wide")
 
 async def run_audit_core(urls, progress_bar, status_text, log_area):
-    """Core auditing logic optimized to handle internal crawl4ai exceptions cleanly."""
+    """Core auditing logic running directly inside volatile memory streams."""
     browser_config = BrowserConfig(
         headless=True,
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
@@ -50,7 +64,6 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
             current_status = "Failed: Unspecified Error"
             
             try:
-                # Execute web automation layer
                 result = await crawler.arun(url=url, config=run_config)
                 
                 if result and result.success:
@@ -58,8 +71,10 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                     if status_code and status_code >= 400:
                         current_status = f"Broken (HTTP {status_code})"
                     else:
-                        # Strip HTML tags via Markdown view to evaluate page state accurately
+                        # Strip HTML layout blocks via Markdown text conversion
                         page_text = (result.markdown or "").lower()
+                        
+                        # Use precise text boundaries for soft-404 match vectors
                         fail_keywords = ["page not found", "404 error", "sorry, this page does not exist", "status code 404"]
                         
                         if any(keyword in page_text for keyword in fail_keywords):
@@ -69,14 +84,12 @@ async def run_audit_core(urls, progress_bar, status_text, log_area):
                 else:
                     error_msg = result.error_message if result else "Unknown Crawler Error"
                     
-                    # Intercept inside-the-object failures returned as string text fields
-                    if "ERR_NAME_NOT_RESOLVED" in error_msg or "failed on navigating acs-goto" in error_msg.lower():
+                    if "ERR_NAME_NOT_RESOLVED" in error_msg or "failed on navigating" in error_msg.lower():
                         current_status = "Broken (Domain Does Not Exist)"
                     else:
                         current_status = f"Failed: {error_msg[:40]}"
                     
             except RuntimeError as re:
-                # Intercept strict Python/Playwright level RuntimeExceptions thrown outside the object context
                 err_str = str(re)
                 if "ERR_NAME_NOT_RESOLVED" in err_str or "dns" in err_str.lower() or "acs-goto" in err_str.lower():
                     current_status = "Broken (Domain Does Not Exist)"
@@ -140,7 +153,7 @@ if uploaded_file is not None:
                 st.subheader("Results Preview")
                 st.dataframe(df, use_container_width=True)
                 
-                # Memory stream generator loop
+                # --- Streaming Engine: Pure volatile memory loop (Never saves file to disk) ---
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     df.to_excel(writer, index=False)
